@@ -26,7 +26,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const headers = {
     "x-hp-hmac-authentication": `${API_KEY}:${signature}`,
     "x-hp-hmac-date": timestamp,
-    "x-hp-hmac-algorithm": "SHA256",
+    "x-hp-hmac-algorithm": "SHA256"
   };
 
   try {
