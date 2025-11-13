@@ -24,12 +24,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     startMarker: String(startMarker),
     devices: String(devices),
     sortOrder: String(sortOrder),
-    limit: String(limit)
+    limit: String(limit),
   });
 
   const urlPath = `${PATH}?${query.toString()}`;
 
-  // Here we generate the canonical string exactly like HP expects
+  // Try the canonical HP style: method \n path \n timestamp
   const messageToSign = `${method}\n${urlPath}\n${timestamp}`;
 
   const signature = crypto
@@ -40,34 +40,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const headers = {
     "x-hp-hmac-authentication": `${API_KEY}:${signature}`,
     "x-hp-hmac-date": timestamp,
-    "x-hp-hmac-algorithm": "SHA256"
+    "x-hp-hmac-algorithm": "SHA256",
   };
 
-  // ---- DEBUG INFO ----
   const debugInfo = {
-    sent_to: `${BASE_URL}${urlPath}`,
+    endpoint: "jobs",
+    sent_url: `${BASE_URL}${urlPath}`,
     method,
+    urlPath,
     timestamp,
     messageToSign,
-    computedSignature: signature,
-    headers
+    signature,
+    headers,
   };
+
   console.log("DEBUG JOBS >>>", debugInfo);
 
   try {
     const response = await fetch(`${BASE_URL}${urlPath}`, { headers });
-
     const text = await response.text();
-
-    // Return full debug info including HP response
     return res.status(response.status).json({
       debug: debugInfo,
-      hpResponse: text
+      hpResponse: text,
     });
   } catch (err: any) {
-    return res.status(500).json({
-      error: err.message,
-      debug: debugInfo
-    });
+    return res.status(500).json({ debug: debugInfo, error: err.message });
   }
 }
