@@ -5,5 +5,11 @@
   "scripts": {
     "vercel-build": "echo \"No build step required\""
   },
-  "dependencies": {}
+  "dependencies": {
+  },
+  "devDependencies": {
+    "@vercel/node": "3.0.17",
+    "@types/node": "^20.11.30",
+    "typescript": "^5.3.3"
+  }
 }
