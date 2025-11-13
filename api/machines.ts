@@ -10,8 +10,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       error: "Missing PRINTOS_KEY or PRINTOS_SECRET",
     });
   }
-
-  const BASE_URL = "https://printos.api.hp.com/printbeat";
+const BASE_URL = "https://printos.api.hp.com/api/PrintbeatService";
   const PATH = "/externalApi/machines";
 
   const method = "GET";
