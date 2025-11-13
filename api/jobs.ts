@@ -9,7 +9,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: "Missing JOBS_KEY or JOBS_SECRET" });
   }
 
-  const BASE_URL = "https://printos.api.hp.com/printbeat";
+const BASE_URL = "https://printos.api.hp.com/api/PrintbeatService";
   const PATH = "/externalApi/jobs";
 
   const method = "GET";
