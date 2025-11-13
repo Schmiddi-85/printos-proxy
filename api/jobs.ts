@@ -9,7 +9,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: "Missing JOBS_KEY or JOBS_SECRET" });
   }
 
-const BASE_URL = "https://printos.api.hp.com/api/PrintbeatService";
+  const BASE_URL = "https://printos.api.hp.com/api/PrintbeatService";
   const PATH = "/externalApi/jobs";
 
   const method = "GET";
@@ -20,17 +20,16 @@ const BASE_URL = "https://printos.api.hp.com/api/PrintbeatService";
   const sortOrder = req.query.sortOrder ?? "ASC";
   const limit = req.query.limit ?? "";
 
-  const query = new URLSearchParams({
+  const queryString = new URLSearchParams({
     startMarker: String(startMarker),
     devices: String(devices),
     sortOrder: String(sortOrder),
     limit: String(limit),
-  });
+  }).toString();
 
-  const urlPath = `${PATH}?${query.toString()}`;
-
-  // Try the canonical HP style: method \n path \n timestamp
-  const messageToSign = `${method}\n${urlPath}\n${timestamp}`;
+  // Signature rules for PRINTOS JOBS:
+  // method + " " + PATH + timestamp + queryString
+  const messageToSign = `${method} ${PATH}${timestamp}${queryString}`;
 
   const signature = crypto
     .createHmac("sha256", API_SECRET)
@@ -45,10 +44,11 @@ const BASE_URL = "https://printos.api.hp.com/api/PrintbeatService";
 
   const debugInfo = {
     endpoint: "jobs",
-    sent_url: `${BASE_URL}${urlPath}`,
+    sent_url: `${BASE_URL}${PATH}?${queryString}`,
     method,
-    urlPath,
     timestamp,
+    PATH,
+    queryString,
     messageToSign,
     signature,
     headers,
@@ -57,13 +57,13 @@ const BASE_URL = "https://printos.api.hp.com/api/PrintbeatService";
   console.log("DEBUG JOBS >>>", debugInfo);
 
   try {
-    const response = await fetch(`${BASE_URL}${urlPath}`, { headers });
+    const response = await fetch(`${BASE_URL}${PATH}?${queryString}`, { headers });
     const text = await response.text();
-    return res.status(response.status).json({
+    res.status(response.status).json({
       debug: debugInfo,
       hpResponse: text,
     });
   } catch (err: any) {
-    return res.status(500).json({ debug: debugInfo, error: err.message });
+    res.status(500).json({ debug: debugInfo, error: err.message });
   }
 }
