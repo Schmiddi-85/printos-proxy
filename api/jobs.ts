@@ -15,9 +15,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
- const BASE_URL = "https://printos.api.hp.com/printbeat-service";
- const PATH = "/externalApi/jobs";
-
+  // ✔ DEIN KORREKTER ENDPOINT
+  const BASE_URL = "https://printos.api.hp.com/printbeat";
+  const PATH = "/externalApi/jobs";
 
   const startMarker = req.query.startMarker ?? "1";
   const devices = req.query.devices ?? "";
@@ -50,7 +50,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const response = await fetch(`${BASE_URL}${urlPath}`, { headers });
     const text = await response.text();
-
     res.status(response.status).send(text);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
