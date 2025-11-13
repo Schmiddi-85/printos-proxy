@@ -15,8 +15,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  const BASE_URL = "https://printos.api.hp.com/printbeat";
-const PATH = "/externalApi/jobs";
+ const BASE_URL = "https://printos.api.hp.com/printbeat-service";
+ const PATH = "/externalApi/jobs";
 
 
   const startMarker = req.query.startMarker ?? "1";
