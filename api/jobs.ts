@@ -6,13 +6,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const API_SECRET = process.env.JOBS_SECRET;
 
   if (!API_KEY || !API_SECRET) {
-    return res.status(500).json({
-      error: "Missing JOBS_KEY or JOBS_SECRET in environment variables",
-    });
+    return res.status(500).json({ error: "Missing JOBS_KEY or JOBS_SECRET" });
   }
 
   const BASE_URL = "https://printos.api.hp.com/printbeat";
   const PATH = "/externalApi/jobs";
+
+  const method = "GET";
+  const timestamp = new Date().toISOString();
 
   const startMarker = req.query.startMarker ?? "1";
   const devices = req.query.devices ?? "";
@@ -23,13 +24,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     startMarker: String(startMarker),
     devices: String(devices),
     sortOrder: String(sortOrder),
-    limit: String(limit),
+    limit: String(limit)
   });
 
   const urlPath = `${PATH}?${query.toString()}`;
-  const method = "GET";
-  const timestamp = new Date().toISOString();
 
+  // Here we generate the canonical string exactly like HP expects
   const messageToSign = `${method}\n${urlPath}\n${timestamp}`;
 
   const signature = crypto
@@ -40,14 +40,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const headers = {
     "x-hp-hmac-authentication": `${API_KEY}:${signature}`,
     "x-hp-hmac-date": timestamp,
-    "x-hp-hmac-algorithm": "SHA256",
+    "x-hp-hmac-algorithm": "SHA256"
   };
+
+  // ---- DEBUG INFO ----
+  const debugInfo = {
+    sent_to: `${BASE_URL}${urlPath}`,
+    method,
+    timestamp,
+    messageToSign,
+    computedSignature: signature,
+    headers
+  };
+  console.log("DEBUG JOBS >>>", debugInfo);
 
   try {
     const response = await fetch(`${BASE_URL}${urlPath}`, { headers });
+
     const text = await response.text();
-    res.status(response.status).send(text);
+
+    // Return full debug info including HP response
+    return res.status(response.status).json({
+      debug: debugInfo,
+      hpResponse: text
+    });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({
+      error: err.message,
+      debug: debugInfo
+    });
   }
 }
