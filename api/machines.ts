@@ -11,7 +11,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  const BASE_URL = "https://printos.api.hp.com/printbeat";
+  const BASE_URL = "https://printos.api.hp.com/printbeat-service";
   const PATH = "/externalApi/machines";
 
   const method = "GET";
