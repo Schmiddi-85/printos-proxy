@@ -41,12 +41,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .update(messageToSign)
     .digest("hex");
 
-  const headers = {
-    "x-hp-hmac-authentication": `${API_KEY}:${signature}`,
-    "x-hp-hmac-date": timestamp,
-    "x-hp-hmac-algorithm": "SHA256",
-  };
 
+const headers = {
+  "content-type": "application/json",
+  "x-hp-hmac-authentication": `${API_KEY}:${signature}`,
+  "x-hp-hmac-date": timestamp,
+  "x-hp-hmac-algorithm": "SHA256",
+};
+
+  
   try {
     const response = await fetch(`${BASE_URL}${urlPath}`, { headers });
     const text = await response.text();
