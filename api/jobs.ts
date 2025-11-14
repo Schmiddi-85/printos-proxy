@@ -11,27 +11,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (!API_KEY || !API_SECRET) {
     return res.status(500).json({
-      error: "Missing JOBS_KEY or JOBS_SECRET in environment variables",
+      error: "Missing JOBS_KEY or JOBS_SECRET"
     });
   }
 
   const BASE_URL = "https://printos.api.hp.com/printbeat";
   const PATH = "/externalApi/jobs";
 
-  // Query parameters (empty devices = all machines)
-  const params = new URLSearchParams({
-    startMarker: req.query.startMarker ?? "0",
-    devices: req.query.devices ?? "",
-    sortOrder: req.query.sortOrder ?? "ASC",
-    limit: req.query.limit ?? "",
+  const startMarker = req.query.startMarker ?? "0";
+  const sortOrder = req.query.sortOrder ?? "ASC";
+  const devices = req.query.devices ?? "";
+
+  const queryString = new URLSearchParams({
+    startMarker: String(startMarker),
+    sortOrder: String(sortOrder)
   });
 
-  const finalUrl = `${BASE_URL}${PATH}?${params.toString()}`;
+  if (devices) {
+    queryString.append("devices", String(devices));
+  }
 
+  const urlPathWithQuery = `${PATH}?${queryString.toString()}`;
+
+  // CRITICAL: must be EXACTLY method + space + path + timestamp
   const timestamp = new Date().toISOString();
-
-  // *** REQUIRED BY HP ***
-  const messageToSign = `GET\n${PATH}\n${timestamp}`;
+  const messageToSign = `GET ${urlPathWithQuery}${timestamp}`;
 
   const signature = crypto
     .createHmac("sha256", API_SECRET)
@@ -39,22 +43,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .digest("hex");
 
   const headers = {
+    "x-hp-hmac-authentication": `${API_KEY}:${signature}`,
     "x-hp-hmac-date": timestamp,
     "x-hp-hmac-algorithm": "SHA256",
-    "x-hp-hmac-authentication": `${API_KEY}:${signature}`,
-    Accept: "application/json",
-    Host: "printos.api.hp.com",          // <----- THIS FIXES THE 401!
+    "Accept": "application/json"
   };
 
   try {
-    const hpResponse = await fetch(finalUrl, {
-      headers,
-      method: "GET",
-    });
+    const response = await fetch(`${BASE_URL}${urlPathWithQuery}`, { headers });
+    const text = await response.text();
 
-    const body = await hpResponse.text();
-    res.status(hpResponse.status).send(body);
-  } catch (err: any) {
+    res.status(response.status).send(text);
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 }
