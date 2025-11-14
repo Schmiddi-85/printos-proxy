@@ -15,16 +15,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  // BASE URL wie im HP-Test
+  // Base URL from HP docs
   const BASE_URL = "https://printos.api.hp.com/printbeat";
+
+  // This is always the SAME and is used for the HMAC (without query params!)
   const PATH = "/externalApi/jobs";
 
-  // Query Params
+  // Query parameters provided by client (or default)
   const startMarker = req.query.startMarker ?? "0";
   const devices = req.query.devices ?? "";
   const sortOrder = req.query.sortOrder ?? "ASC";
   const limit = req.query.limit ?? "";
 
+  // Build real query string for the HP API
   const queryString = new URLSearchParams({
     startMarker: String(startMarker),
     devices: String(devices),
@@ -32,13 +35,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     limit: String(limit),
   }).toString();
 
-  const fullPath = `${PATH}?${queryString}`;
+  const finalUrl = `${BASE_URL}${PATH}?${queryString}`;
 
-  const method = "GET";
+  // HP-required timestamp
   const timestamp = new Date().toISOString();
 
-  // EXACT format used by HP Test UI
-  const messageToSign = `${method}\n${fullPath}\n${timestamp}`;
+  // IMPORTANT: SIGNATURE *does not include query string*
+  const messageToSign = `GET\n${PATH}\n${timestamp}`;
 
   const signature = crypto
     .createHmac("sha256", API_SECRET)
@@ -46,18 +49,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .digest("hex");
 
   const headers = {
-    "x-hp-hmac-authentication": `${API_KEY}:${signature}`,
     "x-hp-hmac-date": timestamp,
     "x-hp-hmac-algorithm": "SHA256",
+    "x-hp-hmac-authentication": `${API_KEY}:${signature}`,
     Accept: "application/json",
   };
 
   try {
-    const url = `${BASE_URL}${fullPath}`;
-
-    const response = await fetch(url, { headers });
+    const response = await fetch(finalUrl, { headers });
     const text = await response.text();
-
     res.status(response.status).send(text);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
