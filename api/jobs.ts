@@ -20,26 +20,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const startMarker = req.query.startMarker ?? "0";
   const sortOrder = req.query.sortOrder ?? "ASC";
-  const devices = req.query.devices;
+  const devices = req.query.devices; // optional
 
-  // Query exakt so wie im Testtool
-  const queryParams = new URLSearchParams();
-  queryParams.set("startMarker", String(startMarker));
-  queryParams.set("sortOrder", String(sortOrder));
+  // Build query string
+  const query = new URLSearchParams({
+    startMarker: String(startMarker),
+    sortOrder: String(sortOrder),
+  });
 
   if (devices) {
-    queryParams.set("devices", String(devices));
+    query.append("devices", String(devices));
   }
 
-  const queryString = queryParams.toString();
-  const urlPathWithQuery = `${PATH}?${queryString}`;
+  const urlPathWithQuery = `${PATH}?${query.toString()}`;
 
-  // EXACT same timestamp formatting as HP tool: ohne Millisekunden
-  const iso = new Date().toISOString();
-  const timestamp = iso.replace(/\.\d{3}Z$/, "Z");
+  // EXACT HP TEST TOOL FORMAT:
+  // method\npath\nstartMarker=...\nsortOrder=...\n[timestamp]
 
-  // EXACT message like HP's tool
-  const messageToSign = `GET ${urlPathWithQuery}${timestamp}`;
+  const timestamp = new Date().toISOString();
+
+  let messageToSign =
+    `GET\n` +
+    `${PATH}\n` +
+    `startMarker=${startMarker}\n` +
+    `sortOrder=${sortOrder}\n`;
+
+  if (devices) {
+    messageToSign += `devices=${devices}\n`;
+  }
+
+  messageToSign += timestamp;
 
   const signature = crypto
     .createHmac("sha256", API_SECRET)
@@ -50,14 +60,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     "x-hp-hmac-authentication": `${API_KEY}:${signature}`,
     "x-hp-hmac-date": timestamp,
     "x-hp-hmac-algorithm": "SHA256",
-    "Accept": "application/json"
+    Accept: "application/json"
   };
 
   try {
     const response = await fetch(`${BASE_URL}${urlPathWithQuery}`, { headers });
     const text = await response.text();
     res.status(response.status).send(text);
-  } catch (err: any) {
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 }
