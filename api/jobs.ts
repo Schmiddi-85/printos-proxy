@@ -15,32 +15,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  // Base URL from HP docs
   const BASE_URL = "https://printos.api.hp.com/printbeat";
-
-  // This is always the SAME and is used for the HMAC (without query params!)
   const PATH = "/externalApi/jobs";
 
-  // Query parameters provided by client (or default)
-  const startMarker = req.query.startMarker ?? "0";
-  const devices = req.query.devices ?? "";
-  const sortOrder = req.query.sortOrder ?? "ASC";
-  const limit = req.query.limit ?? "";
+  // Query parameters (empty devices = all machines)
+  const params = new URLSearchParams({
+    startMarker: req.query.startMarker ?? "0",
+    devices: req.query.devices ?? "",
+    sortOrder: req.query.sortOrder ?? "ASC",
+    limit: req.query.limit ?? "",
+  });
 
-  // Build real query string for the HP API
-  const queryString = new URLSearchParams({
-    startMarker: String(startMarker),
-    devices: String(devices),
-    sortOrder: String(sortOrder),
-    limit: String(limit),
-  }).toString();
+  const finalUrl = `${BASE_URL}${PATH}?${params.toString()}`;
 
-  const finalUrl = `${BASE_URL}${PATH}?${queryString}`;
-
-  // HP-required timestamp
   const timestamp = new Date().toISOString();
 
-  // IMPORTANT: SIGNATURE *does not include query string*
+  // *** REQUIRED BY HP ***
   const messageToSign = `GET\n${PATH}\n${timestamp}`;
 
   const signature = crypto
@@ -53,12 +43,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     "x-hp-hmac-algorithm": "SHA256",
     "x-hp-hmac-authentication": `${API_KEY}:${signature}`,
     Accept: "application/json",
+    Host: "printos.api.hp.com",          // <----- THIS FIXES THE 401!
   };
 
   try {
-    const response = await fetch(finalUrl, { headers });
-    const text = await response.text();
-    res.status(response.status).send(text);
+    const hpResponse = await fetch(finalUrl, {
+      headers,
+      method: "GET",
+    });
+
+    const body = await hpResponse.text();
+    res.status(hpResponse.status).send(body);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
