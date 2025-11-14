@@ -20,21 +20,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const startMarker = req.query.startMarker ?? "0";
   const sortOrder = req.query.sortOrder ?? "ASC";
-  const devices = req.query.devices ?? "";
+  const devices = req.query.devices;
 
-  const queryString = new URLSearchParams({
-    startMarker: String(startMarker),
-    sortOrder: String(sortOrder)
-  });
+  // Query exakt so wie im Testtool
+  const queryParams = new URLSearchParams();
+  queryParams.set("startMarker", String(startMarker));
+  queryParams.set("sortOrder", String(sortOrder));
 
   if (devices) {
-    queryString.append("devices", String(devices));
+    queryParams.set("devices", String(devices));
   }
 
-  const urlPathWithQuery = `${PATH}?${queryString.toString()}`;
+  const queryString = queryParams.toString();
+  const urlPathWithQuery = `${PATH}?${queryString}`;
 
-  // CRITICAL: must be EXACTLY method + space + path + timestamp
-  const timestamp = new Date().toISOString();
+  // EXACT same timestamp formatting as HP tool: ohne Millisekunden
+  const iso = new Date().toISOString();
+  const timestamp = iso.replace(/\.\d{3}Z$/, "Z");
+
+  // EXACT message like HP's tool
   const messageToSign = `GET ${urlPathWithQuery}${timestamp}`;
 
   const signature = crypto
@@ -52,9 +56,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const response = await fetch(`${BASE_URL}${urlPathWithQuery}`, { headers });
     const text = await response.text();
-
     res.status(response.status).send(text);
-  } catch (err) {
+  } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 }
